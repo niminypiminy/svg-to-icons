@@ -6,4 +6,4 @@ Usage:
 Place your icon.svg in your project root.
 Run: `cargo-svgtoicons --svg icon.svg --all`
 
-This generates icons in an icons directory in your root.
+This generates ico, icns, and pngs 16, 32, 48, 64, 128, 256, 512
