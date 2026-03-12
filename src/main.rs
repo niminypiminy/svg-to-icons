@@ -167,7 +167,6 @@ fn main() -> io::Result<()> {
         (64, "ih32"),
         (128, "it32"),
         (256, "ic08"),
-        (512, "ic09"),  // Added for better modern ICNS support
     ];
 
     let icon_entries = svg_to_icon_data(&svg_data, &icon_sizes)?;
