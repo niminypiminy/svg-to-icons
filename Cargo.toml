@@ -1,0 +1,19 @@
+[package]
+name = "svg-to-icons"
+version = "0.1.0"
+edition = "2024"
+description = "A tool to convert SVG to icon formats (ICO, ICNS, PNGs)."
+license = "MIT"  
+repository = "https://github.com/niminypiminy/svg-to-icons"  
+
+[dependencies]
+resvg = "0.44.0"
+usvg = "0.44.0"
+tiny-skia = "0.11.4"
+ico = "0.3"
+image = "0.24"
+clap = { version = "4.5.17", features = ["derive"] }  # For CLI args
+
+[[bin]]
+name = "cargo-svgtoicons"
+path = "src/main.rs"
