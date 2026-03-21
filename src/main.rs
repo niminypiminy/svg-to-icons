@@ -7,6 +7,25 @@ use svg_to_icons::{
     create_social_media_png, create_web_targets, svg_to_icon_data
 };
 
+fn parse_hex_color(hex: &str) -> Result<[u8; 4], String> {
+    let hex = hex.trim_start_matches('#');
+    
+    if hex.len() == 6 {
+        let r = u8::from_str_radix(&hex[0..2], 16).map_err(|_| "Invalid red component")?;
+        let g = u8::from_str_radix(&hex[2..4], 16).map_err(|_| "Invalid green component")?;
+        let b = u8::from_str_radix(&hex[4..6], 16).map_err(|_| "Invalid blue component")?;
+        Ok([r, g, b, 255])
+    } else if hex.len() == 8 {
+        let r = u8::from_str_radix(&hex[0..2], 16).map_err(|_| "Invalid red component")?;
+        let g = u8::from_str_radix(&hex[2..4], 16).map_err(|_| "Invalid green component")?;
+        let b = u8::from_str_radix(&hex[4..6], 16).map_err(|_| "Invalid blue component")?;
+        let a = u8::from_str_radix(&hex[6..8], 16).map_err(|_| "Invalid alpha component")?;
+        Ok([r, g, b, a])
+    } else {
+        Err("Hex color must be 6 or 8 characters long".to_string())
+    }
+}
+
 #[derive(Parser, Debug)]
 #[command(version, about = "Convert SVG to icons (ICO, ICNS, PNGs, Social/Web targets).")]
 struct Args {
@@ -41,6 +60,10 @@ struct Args {
     /// Generate Open Graph / Social Media Banner (1200x630)
     #[arg(long)]
     social: bool,
+
+    /// Background hex color for the social banner (e.g., "#334155" or "ffffff"). Default is "#334155".
+    #[arg(long, default_value = "334155")]
+    bg_color: String,
 
     /// Generate all formats (overrides individual flags)
     #[arg(short, long)]
@@ -108,6 +131,15 @@ fn main() -> std::io::Result<()> {
 
     if generate_social {
         let output_social = args.output_dir.join("og-image.png");
+
+        let color = match parse_hex_color(&args.bg_color) {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("Warning: Failed to parse bg-color: {}. Falling back to default #334155.", e);
+                [51, 65, 85, 255] // The rgb for #334155
+            }
+        };
+        
         create_social_media_png(&svg_data, &output_social, 1200, 630)?;
     }
 
