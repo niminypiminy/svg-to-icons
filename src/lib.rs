@@ -141,7 +141,8 @@ pub fn create_social_media_png(
     svg_data: &str, 
     output_path: &PathBuf, 
     canvas_width: u32, 
-    canvas_height: u32
+    canvas_height: u32,
+    bg_color: [u8; 4] // [R, G, B, A] parameter
 ) -> io::Result<()> {
     let opt = Options::default();
     let tree = Tree::from_str(svg_data, &opt).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
@@ -159,9 +160,10 @@ pub fn create_social_media_png(
         io::Error::new(io::ErrorKind::Other, "Failed to create canvas pixmap")
     })?;
 
-    // Fill the canvas with #334155 (RGB: 51, 65, 85)
+    // NEW: Apply the custom color here
     let mut paint = Paint::default();
-    paint.set_color(Color::from_rgba8(51, 65, 85, 255));
+    paint.set_color(Color::from_rgba8(bg_color[0], bg_color[1], bg_color[2], bg_color[3]));
+    
     canvas.fill_rect(
         Rect::from_xywh(0.0, 0.0, canvas_width as f32, canvas_height as f32).unwrap(),
         &paint,
