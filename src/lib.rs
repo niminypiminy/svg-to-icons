@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use image::ImageFormat;
 use ico::{IconDir, IconDirEntry, IconImage, ResourceType};
 use resvg::render;
-use resvg::tiny_skia::{Pixmap, Transform};
+use resvg::tiny_skia::{Color, Paint, Pixmap, PixmapPaint, Rect, Transform};
 use resvg::usvg::{Options, Tree};
 
 pub fn svg_to_icon_data(
@@ -115,5 +115,77 @@ pub fn create_png_512(svg_data: &str, output_path: &PathBuf) -> io::Result<()> {
     let mut file = File::create(output_path)?;
     file.write_all(&png_data)?;
     println!("Created {:?}", output_path);
+    Ok(())
+}
+
+pub fn create_web_targets(svg_data: &str, output_dir: &PathBuf) -> io::Result<()> {
+    let web_targets = [
+        (180, "apple-touch-icon.png"),
+        (192, "android-chrome-192.png"),
+        (512, "android-chrome-512.png"),
+    ];
+
+    for (size, filename) in web_targets {
+        // Reuse svg_to_icon_data to generate the raw png data
+        let entry = svg_to_icon_data(svg_data, &[(size, "")])?;
+        let output_path = output_dir.join(filename);
+        let mut file = File::create(&output_path)?;
+        file.write_all(&entry[0].0)?;
+        println!("Created {:?}", output_path);
+    }
+    
+    Ok(())
+}
+
+pub fn create_social_media_png(
+    svg_data: &str, 
+    output_path: &PathBuf, 
+    canvas_width: u32, 
+    canvas_height: u32
+) -> io::Result<()> {
+    let opt = Options::default();
+    let tree = Tree::from_str(svg_data, &opt).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+
+    let logo_size = 512;
+    let mut logo_pixmap = Pixmap::new(logo_size, logo_size).ok_or_else(|| {
+        io::Error::new(io::ErrorKind::Other, "Failed to create logo pixmap")
+    })?;
+
+    let scale = logo_size as f32 / tree.size().width().max(tree.size().height());
+    let transform = Transform::from_scale(scale, scale);
+    render(&tree, transform, &mut logo_pixmap.as_mut());
+
+    let mut canvas = Pixmap::new(canvas_width, canvas_height).ok_or_else(|| {
+        io::Error::new(io::ErrorKind::Other, "Failed to create canvas pixmap")
+    })?;
+
+    // Fill the canvas with #334155 (RGB: 51, 65, 85)
+    let mut paint = Paint::default();
+    paint.set_color(Color::from_rgba8(51, 65, 85, 255));
+    canvas.fill_rect(
+        Rect::from_xywh(0.0, 0.0, canvas_width as f32, canvas_height as f32).unwrap(),
+        &paint,
+        Transform::identity(),
+        None,
+    );
+
+    let x_offset = ((canvas_width - logo_size) / 2) as i32;
+    let y_offset = ((canvas_height - logo_size) / 2) as i32;
+
+    canvas.draw_pixmap(
+        x_offset,
+        y_offset,
+        logo_pixmap.as_ref(),
+        &PixmapPaint::default(),
+        Transform::identity(),
+        None,
+    );
+
+    let png_data = canvas.encode_png().map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+
+    let mut file = File::create(output_path)?;
+    file.write_all(&png_data)?;
+    println!("Created {:?}", output_path);
+    
     Ok(())
 }
