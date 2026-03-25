@@ -1,78 +1,90 @@
 # svg-to-icons
 
+A CLI + library to convert a single `icon.svg` into all common icon formats:  
+**ICO** (Windows), **ICNS** (macOS), **PNG** sizes, **web/mobile**, and **social media** banners.
+
 ## Install
 
-```bash
 cargo install svg-to-icons
-```
 
-## Usage (CLI)
+## CLI Usage
 
 1. Place your `icon.svg` in your project root.
 2. Run:
 
-```bash
-cargo-svgtoicons --svg icon.svg --all
-```
+cargo-svgtoicons --all 
 
-This generates:
-
-- `ico`
-- `icns`
-- `png` sizes: `16`, `32`, `48`, `64`, `128`, `256`, `512`
-
----
+    icons/
+    ├── icon.ico
+    ├── icon.icns
+    ├── icon-512.png
+    ├── icon_16x16.png
+    ├── icon_32x32.png
+    ├── icon_48x48.png
+    ├── icon_64x64.png
+    ├── icon_128x128.png
+    ├── icon_256x256.png
+    ├── icon_512x512.png
+    ├── icon_1024x1024.png
+    ├── apple-touch-icon.png
+    ├── android-chrome-192.png
+    ├── android-chrome-512.png
+    └── og-image.png
 
 ## Usage (as a library)
 
 ### Add to `Cargo.toml`
 
-```toml
 [dependencies]
-svg-to-icons = "0.1.2"
-```
+svg-to-icons = "0.2.0"
 
 ---
 
 ## Example Code
 
-```rust
-use std::fs::File;
-use std::io::Read;
-use std::path::PathBuf;
-use svg_to_icons::{create_icns, create_ico, create_pngs, create_png_512, svg_to_icon_data};
+    use std::fs::File;
+    use std::io::Read;
+    use std::path::PathBuf;
+    use svg_to_icons::{
+        create_icns, create_ico, create_pngs, create_png_512,
+        create_web_targets, create_social_media_png, svg_to_icon_data,
+    };
 
-fn main() -> std::io::Result<()> {
-    let mut svg_data = String::new();
-    let mut svg_file = File::open("icon.svg")?;
-    svg_file.read_to_string(&mut svg_data)?;
+    fn main() -> std::io::Result<()> {
+        let mut svg_data = String::new();
+        File::open("icon.svg")?.read_to_string(&mut svg_data)?;
 
-    let icon_sizes = [
-        (16, "is32"),
-        (32, "il32"),
-        (48, "ih32"),
-        (64, "ih32"),
-        (128, "it32"),
-        (256, "ic08"),
-    ];
+        let output_dir = PathBuf::from("icons");
+        std::fs::create_dir_all(&output_dir)?;
 
-    let icon_entries = svg_to_icon_data(&svg_data, &icon_sizes)?;
+        let icon_sizes = [
+            (16, "is32"), (32, "il32"), (48, "ih32"), (64, "ih32"),
+            (128, "it32"), (256, "ic08"), (512, "ic09"), (1024, "ic10"),
+        ];
 
-    let output_dir = PathBuf::from("icons");
+        let icon_entries = svg_to_icon_data(&svg_data, &icon_sizes)?;
 
-    std::fs::create_dir_all(&output_dir)?;
+        // Desktop icons
+        create_icns(&icon_entries, &output_dir.join("icon.icns"))?;
+        create_ico(&icon_entries, &output_dir.join("icon.ico"))?;  
+        create_pngs(&icon_entries, &icon_sizes, &output_dir)?;
 
-    let output_icns = output_dir.join("icon.icns");
-    create_icns(&icon_entries, &output_icns)?;
+        // 512×512 PNG
+        create_png_512(&svg_data, &output_dir.join("icon-512.png"))?;
 
-    let output_ico = output_dir.join("icon.ico");
-    create_ico(&icon_entries, &output_ico)?;
+        // Web / mobile targets
+        create_web_targets(&svg_data, &output_dir)?;
 
-    create_pngs(&icon_entries, &icon_sizes, &output_dir)?;
+        // Social media banner is transparent by default, but one may choose a background color. 
+        create_social_media_png(
+            &svg_data,
+            &output_dir.join("og-image.png"),
+            1200,
+            630,
+            None,                        // None = transparent
+            // Some([51, 65, 85, 255])   // Example: #334155
+        )?;
 
-    let output_512 = output_dir.join("icon-512.png");
-    create_png_512(&svg_data, &output_512)?;
-
-    Ok(())
-}
-```
+        println!("All icons generated successfully!");
+        Ok(())
+    }
