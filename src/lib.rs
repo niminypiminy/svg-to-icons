@@ -60,28 +60,36 @@ pub fn create_icns(icon_entries: &[(Vec<u8>, &'static str)], output_path: &PathB
 pub fn create_ico(icon_entries: &[(Vec<u8>, &'static str)], output_path: &PathBuf) -> io::Result<()> {
     let mut icon_dir = IconDir::new(ResourceType::Icon);
 
+    let mut valid_count = 0;
+
     for (png_data, _) in icon_entries {
         let img = image::load_from_memory_with_format(png_data, ImageFormat::Png)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
         let rgba = img.to_rgba8();
         let (width, height) = rgba.dimensions();
 
+        // ICO format maximum size is 256x256
         if width > 256 || height > 256 {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("Icon size {}x{} exceeds ICO maximum of 256x256", width, height),
-            ));
+            continue; // Skip large sizes as they're for ICNS and high-res PNGs)
         }
 
         let icon_img = IconImage::from_rgba_data(width, height, rgba.into_raw());
         let entry = IconDirEntry::encode(&icon_img)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
         icon_dir.add_entry(entry);
+        valid_count += 1;
+    }
+
+    if valid_count == 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "No valid icon sizes (≤ 256x256) were found for ICO generation",
+        ));
     }
 
     let mut file = File::create(output_path)?;
     icon_dir.write(&mut file)?;
-    println!("Created {:?}", output_path);
+    println!("Created {:?} ({} sizes: 16–256 px)", output_path, valid_count);
     Ok(())
 }
 
@@ -142,7 +150,7 @@ pub fn create_social_media_png(
     output_path: &PathBuf, 
     canvas_width: u32, 
     canvas_height: u32,
-    bg_color: [u8; 4] // [R, G, B, A] parameter
+    bg_color: Option<[u8; 4]>,  // None = transparent (new default)
 ) -> io::Result<()> {
     let opt = Options::default();
     let tree = Tree::from_str(svg_data, &opt).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
@@ -160,16 +168,18 @@ pub fn create_social_media_png(
         io::Error::new(io::ErrorKind::Other, "Failed to create canvas pixmap")
     })?;
 
-    // NEW: Apply the custom color here
-    let mut paint = Paint::default();
-    paint.set_color(Color::from_rgba8(bg_color[0], bg_color[1], bg_color[2], bg_color[3]));
-    
-    canvas.fill_rect(
-        Rect::from_xywh(0.0, 0.0, canvas_width as f32, canvas_height as f32).unwrap(),
-        &paint,
-        Transform::identity(),
-        None,
-    );
+    // Only fill a background if the user actually requested a color
+    if let Some(color) = bg_color {
+        let mut paint = Paint::default();
+        paint.set_color(Color::from_rgba8(color[0], color[1], color[2], color[3]));
+        
+        canvas.fill_rect(
+            Rect::from_xywh(0.0, 0.0, canvas_width as f32, canvas_height as f32).unwrap(),
+            &paint,
+            Transform::identity(),
+            None,
+        );
+    }
 
     let x_offset = ((canvas_width - logo_size) / 2) as i32;
     let y_offset = ((canvas_height - logo_size) / 2) as i32;

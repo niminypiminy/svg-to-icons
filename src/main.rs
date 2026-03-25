@@ -61,9 +61,9 @@ struct Args {
     #[arg(long)]
     social: bool,
 
-    /// Background hex color for the social banner (e.g., "#334155" or "ffffff"). Default is "#334155".
-    #[arg(long, default_value = "334155")]
-    bg_color: String,
+    /// Background hex color for the social banner 
+    #[arg(long)]
+    bg_color: Option<String>,
 
     /// Generate all formats (overrides individual flags)
     #[arg(short, long)]
@@ -129,18 +129,24 @@ fn main() -> std::io::Result<()> {
         create_web_targets(&svg_data, &args.output_dir)?;
     }
 
-    if generate_social {
+   if generate_social {
         let output_social = args.output_dir.join("og-image.png");
 
-        let color = match parse_hex_color(&args.bg_color) {
-            Ok(c) => c,
-            Err(e) => {
-                eprintln!("Warning: Failed to parse bg-color: {}. Falling back to default #334155.", e);
-                [51, 65, 85, 255] // The rgb for #334155
-            }
+        let bg_color = match &args.bg_color {
+            Some(hex) => match parse_hex_color(hex) {
+                Ok(c) => Some(c),
+                Err(e) => {
+                    eprintln!(
+                        "Warning: Failed to parse bg-color '{}': {}. Using transparent background.",
+                        hex, e
+                    );
+                    None
+                }
+            },
+            None => None, // transparent by default
         };
-        
-        create_social_media_png(&svg_data, &output_social, 1200, 630)?;
+
+        create_social_media_png(&svg_data, &output_social, 1200, 630, bg_color)?;
     }
 
     Ok(())
