@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use svg_to_icons::{
-    create_icns, create_ico, create_pngs, create_png_512, 
+    create_android_icons, create_icns, create_ico, create_pngs, create_png_512,
     create_social_media_png, create_web_targets, svg_to_icon_data
 };
 
@@ -23,6 +23,22 @@ fn parse_hex_color(hex: &str) -> Result<[u8; 4], String> {
         Ok([r, g, b, a])
     } else {
         Err("Hex color must be 6 or 8 characters long".to_string())
+    }
+}
+
+/// Parse an optional hex flag, warning and falling back to the caller's default
+/// rather than aborting a run that has already written most of its output.
+fn optional_color(hex: Option<&String>, flag: &str) -> Option<[u8; 4]> {
+    let hex = hex?;
+    match parse_hex_color(hex) {
+        Ok(color) => Some(color),
+        Err(e) => {
+            eprintln!(
+                "Warning: Failed to parse {} '{}': {}. Using the default background.",
+                flag, hex, e
+            );
+            None
+        }
     }
 }
 
@@ -61,9 +77,25 @@ struct Args {
     #[arg(long)]
     social: bool,
 
-    /// Background hex color for the social banner 
+    /// Generate the Android launcher set (adaptive icon XML, per-density PNGs,
+    /// themed-icon silhouettes, legacy icons, Play Store image)
+    #[arg(long)]
+    android: bool,
+
+    /// Background hex color for the social banner
     #[arg(long)]
     bg_color: Option<String>,
+
+    /// Background hex color for the Android adaptive icon's plate (default: white).
+    /// Give a foreground-only SVG and set the plate here — the launcher draws them
+    /// as separate layers
+    #[arg(long)]
+    android_bg: Option<String>,
+
+    /// Fraction of the 108dp adaptive canvas the artwork fills (default: 0.611,
+    /// which is the 66dp circle every launcher mask leaves alone)
+    #[arg(long)]
+    android_scale: Option<f32>,
 
     /// Generate all formats (overrides individual flags)
     #[arg(short, long)]
@@ -100,9 +132,10 @@ fn main() -> std::io::Result<()> {
     let generate_png_512 = generate_all || args.png_512;
     let generate_web = generate_all || args.web;
     let generate_social = generate_all || args.social;
+    let generate_android = generate_all || args.android;
 
-    if !(generate_icns || generate_ico || generate_pngs || generate_png_512 || generate_web || generate_social) {
-        println!("No output formats specified. Use --all or specific flags (e.g., --icns, --web, --social).");
+    if !(generate_icns || generate_ico || generate_pngs || generate_png_512 || generate_web || generate_social || generate_android) {
+        println!("No output formats specified. Use --all or specific flags (e.g., --icns, --web, --android, --social).");
         return Ok(());
     }
 
@@ -132,21 +165,17 @@ fn main() -> std::io::Result<()> {
    if generate_social {
         let output_social = args.output_dir.join("og-image.png");
 
-        let bg_color = match &args.bg_color {
-            Some(hex) => match parse_hex_color(hex) {
-                Ok(c) => Some(c),
-                Err(e) => {
-                    eprintln!(
-                        "Warning: Failed to parse bg-color '{}': {}. Using transparent background.",
-                        hex, e
-                    );
-                    None
-                }
-            },
-            None => None, // transparent by default
-        };
+        // None = transparent by default.
+        let bg_color = optional_color(args.bg_color.as_ref(), "bg-color");
 
         create_social_media_png(&svg_data, &output_social, 1200, 630, bg_color)?;
+    }
+
+    if generate_android {
+        // None = white by default; an adaptive background layer has to be opaque.
+        let bg_color = optional_color(args.android_bg.as_ref(), "android-bg");
+
+        create_android_icons(&svg_data, &args.output_dir, bg_color, args.android_scale)?;
     }
 
     Ok(())
