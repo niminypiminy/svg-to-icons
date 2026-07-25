@@ -1,18 +1,18 @@
 [package]
 name = "svg-to-icons"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
-description = "A tool to convert SVG to icon formats (ICO, ICNS, PNGs)."
-license = "MIT"  
-repository = "https://github.com/niminypiminy/svg-to-icons"  
+description = "Convert a single SVG into every icon format an app ships: ICO, ICNS, PNGs, web targets, Android launcher sets, and social banners."
+license = "MIT"
+repository = "https://github.com/niminypiminy/svg-to-icons"
+keywords = ["svg", "icon", "ico", "icns", "android"]
+categories = ["command-line-utilities", "multimedia::images", "development-tools"]
 
 [dependencies]
-resvg = "0.44.0"
-usvg = "0.44.0"
-tiny-skia = "0.11.4"
-ico = "0.3"
-image = "0.24"
-clap = { version = "4.5.17", features = ["derive"] }  # For CLI args
+resvg = "0.47.0"
+ico = "0.5"
+image = "0.25"
+clap = { version = "4.6", features = ["derive"] }  # For CLI args
 
 [[bin]]
 name = "cargo-svgtoicons"
